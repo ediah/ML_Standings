@@ -19,8 +19,8 @@ class Plotter:
         varMax  = max(varCounts)
                 
         fig, ax = plt.subplots()
-        ax.set_ylim([0, max(100, varMax)])
-        n, bins, patches = ax.hist(varInt, len(varUnique))
+        ax.set_ylim([0, max(20, varMax)])
+        n, bins, patches = ax.hist(varInt, int(len(varUnique) / 2))
         y = (1 / (np.sqrt(2 * np.pi) * sd)) * np.exp(-0.5 * ((bins - mean) / sd)**2)
         ax.plot(bins, varKoef * y, '--')
         

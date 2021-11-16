@@ -1,28 +1,81 @@
 from lib.Plotter import Plotter
 from math import sqrt
 from scipy.special import erf, erfinv
+from collections import OrderedDict
+from datetime import datetime
+
+COLOUR_GREEN = '\033[32m'
+COLOUR_RED = '\033[31m'
+COLOUR_END = '\033[0m'
 
 class Statistics:
     def __init__(self, table):
         self.table = table
-        
-        self.sortBy('Сумма', True)
+        self.lastTaskNum = None
+        self.tasks = None
+
         self.mean, self.stdev = self.calcZ()
+
+    def prepare(self, tp, dls):
+        self.sortTableTasks(dls)
+        self.sortTasks(dls)
+        self.setTimePoint(tp)
+        self.statOldPos()
+
+    def setTimePoint(self, tp):
+        self.lastTaskNum = self.lastTaskNum if tp == '' else min(int(tp), self.lastTaskNum)
+
+    def getTasks(self):
+        tasks = list(self.table.keys())
+        tasks = tasks[:tasks.index('Сумма')]
+        self.tasks = list(OrderedDict.fromkeys(tasks))[1:]
     
+    def sortTasks(self, dls):
+        key = lambda pair: pair[0]
+        srt = sorted(zip(dls, self.tasks), key=key)
+        self.tasks = [x for _, x in srt]
+        
+        dls = sorted(dls)
+        self.lastTaskNum = sum([datetime.now() > x for x in dls]) - 1
+    
+    def sortTableTasks(self, dls):
+        tailIdx = list(self.table.keys()).index('Сумма') - 1
+        tableTasks = list(self.table.items())[1:]
+        tableTasks = tableTasks[:tailIdx]
+
+        tableHead = list(self.table.items())[:1]
+        tableTail = list(self.table.items())[tailIdx:]
+
+        # Ключ: извлечение срока сдачи/рецензирования задания
+        key = lambda pair: dls[self.tasks.index(pair[0])]
+        tableTasks = sorted(tableTasks, key=key)
+        
+        table = tableHead + tableTasks + tableTail
+        self.table = dict(table)
+
     def sortBy(self, name, desc = False):
+        if isinstance(self.table[name][0], str):
+            sortKey = lambda pair: float(pair[0].split()[-1]) if len(pair[0]) > 0 else 10**5
+        else:
+            sortKey = lambda pair: pair[0]
+        
         for key in self.table.keys():
+            if name == key:
+                continue
+
             X = self.table[key]
             Y = self.table[name]
-            srt = sorted(zip(Y, X), key=lambda pair: 
-                float(pair[0].split()[-1]) if len(pair[0]) > 0 else 10**5,
-                reverse = desc)
+
+            srt = sorted(zip(Y, X), key=sortKey, reverse = desc)
             self.table[key] = [x for _, x in srt]
+        
+        self.table[name] = sorted(self.table[name], key=float, reverse = desc)
     
     def maxScore(self):
         score = 0
-        for key in self.table.keys():
-            if key.find('Оценка') != -1:
-                score += max([float(x) if x != '' else 0 for x in self.table[key]])
+        keys = list(self.table.keys())
+        for key in keys[1:keys.index('Сумма')]:
+            score += max([float(x) if x != '' else 0 for x in self.table[key]])
         return score
     
     def calcZ(self):
@@ -34,6 +87,33 @@ class Statistics:
         self.table['Z'] = z
         return round(mean, 2), round(stdev, 2)
     
+    def statOldPos(self):
+        task = self.tasks[self.lastTaskNum]
+        
+        studs = len(self.table['Сумма'])
+        sumt = [0 for i in range(studs)]
+
+        for v in list(self.table.keys())[1:]: # Первая колонка с именами
+            sumt = [float(x if x != '' else 0) + y for x, y in zip(self.table[v], sumt)]
+
+            if v.find(task) != -1:
+                break
+        
+        self.table['Предыдущая сумма'] = sumt
+        self.sortBy('Предыдущая сумма', desc = True)
+        self.table['Предыдущая позиция'] = [i + 1 for i in range(studs)]
+        self.sortBy('Сумма', True)
+
+    def genShift(self, pos):
+        shiftInt = self.table['Предыдущая позиция'][pos] - pos - 1
+        if shiftInt > 0:
+            shift = COLOUR_GREEN + '▲' + str(shiftInt) + COLOUR_END
+        elif shiftInt < 0:
+            shift = COLOUR_RED + '▼' + str(-shiftInt) + COLOUR_END
+        elif shiftInt == 0:
+            shift = '●'
+        return shift
+
     def statName(self, name):
         def ratio(a, b):
             return round(100 - (a / b) * 100, 2)
@@ -79,7 +159,7 @@ class Statistics:
             else:
                 mark = 2
             return mark
-            
+        
         pos = self.table['Имя'].index(name)
         max_pos = len(self.table['Имя'])
         
@@ -92,14 +172,20 @@ class Statistics:
         
         maxarea = erfarea(self.table['Z'][0])
         nextarea = min(erfarea(z) + 10, maxarea) / 100
-        score_nextz = round((erfmark(nextarea) - z) * stdev)
+        score_nextz = round((erfmark(nextarea) - z) * stdev, 1)
+
+        shift = self.genShift(pos)
         
         line = 55
         
         print(f'{" %s " % name:=^{line}}')
         print(f'Баллов: {score} из {max_score}\t(Предварительная оценка -- {score_mark})')
         print(f'Z:\t{z}\t\t(лучше, чем {erfarea(z)}%)')
+<<<<<<< HEAD
         print(f'Место:\t{pos + 1} из {max_pos}')
+=======
+        print(f'Место:\t{pos + 1} из {max_pos}\t{shift}')
+>>>>>>> e083ae81d5b1887ebf1ec03b2f4764eb030574a5
         print('-' * line)
         
         print(f'Чтобы обойти следующие 10%, нужно {score_nextz} баллов')
@@ -119,7 +205,7 @@ class Statistics:
  
     def statTop(self, name):
         n = 10
-        
+
         start = max(self.table['Имя'].index(name) - n // 2, 0) if name != '' else 0
         end = min(start + n, len(self.table['Имя']))
         
@@ -134,4 +220,9 @@ class Statistics:
             name = self.table['Имя'][i]
             z = self.table['Z'][i]
             score = self.table['Сумма'][i]
+<<<<<<< HEAD
             print(f'{i+1:{x}}) {name:<{maxName}}{z:<{maxZ}}{score:<{maxScore}}')
+=======
+            shift = self.genShift(i)
+            print(f'{i+1:{x}}) {name:<{maxName}}{z:<{maxZ}}{score:<{maxScore}}  {shift}')
+>>>>>>> e083ae81d5b1887ebf1ec03b2f4764eb030574a5

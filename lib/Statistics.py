@@ -181,11 +181,7 @@ class Statistics:
         print(f'{" %s " % name:=^{line}}')
         print(f'Баллов: {score} из {max_score}\t(Предварительная оценка -- {score_mark})')
         print(f'Z:\t{z}\t\t(лучше, чем {erfarea(z)}%)')
-<<<<<<< HEAD
         print(f'Место:\t{pos + 1} из {max_pos}')
-=======
-        print(f'Место:\t{pos + 1} из {max_pos}\t{shift}')
->>>>>>> e083ae81d5b1887ebf1ec03b2f4764eb030574a5
         print('-' * line)
         
         print(f'Чтобы обойти следующие 10%, нужно {score_nextz} баллов')
@@ -220,9 +216,4 @@ class Statistics:
             name = self.table['Имя'][i]
             z = self.table['Z'][i]
             score = self.table['Сумма'][i]
-<<<<<<< HEAD
             print(f'{i+1:{x}}) {name:<{maxName}}{z:<{maxZ}}{score:<{maxScore}}')
-=======
-            shift = self.genShift(i)
-            print(f'{i+1:{x}}) {name:<{maxName}}{z:<{maxZ}}{score:<{maxScore}}  {shift}')
->>>>>>> e083ae81d5b1887ebf1ec03b2f4764eb030574a5

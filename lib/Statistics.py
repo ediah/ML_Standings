@@ -3,6 +3,7 @@ from math import sqrt
 from scipy.special import erf, erfinv
 from collections import OrderedDict
 from datetime import datetime
+import numpy as np
 
 COLOUR_GREEN = '\033[32m'
 COLOUR_RED = '\033[31m'
@@ -14,13 +15,29 @@ class Statistics:
         self.lastTaskNum = None
         self.tasks = None
 
-        self.mean, self.stdev = self.calcZ()
-
-    def prepare(self, tp, dls):
+    def prepare(self, tp, dls, delIdle = False):
         self.sortTableTasks(dls)
         self.sortTasks(dls)
+        if delIdle:
+            self.deleteIdlers()
+        self.mean, self.stdev = self.calcZ()
         self.setTimePoint(tp)
         self.statOldPos()
+
+    def deleteIdlers(self):
+        misses = []
+        for x in zip(*self.table.values()):
+            missed = sum([e == '' for e in list(x)[:self.lastTaskNum]])
+            misses += [missed]
+        mean = sum(misses) / len(misses)
+        #d = [(x - mean) ** 2 for x in misses]
+        #std = (sum(d) / len(d)) ** .5
+        indexes = [x <= round(mean) for x in misses]
+        oldkeys = list(self.table.keys())
+        oldvals = list(zip(*self.table.values()))
+
+        newvals = np.array(oldvals)[indexes].T
+        self.table = dict(zip(oldkeys, newvals))
 
     def setTimePoint(self, tp):
         self.lastTaskNum = self.lastTaskNum if tp == '' else min(int(tp), self.lastTaskNum)
@@ -36,7 +53,7 @@ class Statistics:
         self.tasks = [x for _, x in srt]
         
         dls = sorted(dls)
-        self.lastTaskNum = sum([datetime.now() > x for x in dls]) - 1
+        self.lastTaskNum = sum([datetime.now() > x for x in dls]) - 2
     
     def sortTableTasks(self, dls):
         tailIdx = list(self.table.keys()).index('Сумма') - 1

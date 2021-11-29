@@ -37,6 +37,7 @@ if __name__ == '__main__':
     parser.add_argument('-u', action='store_true', help='обновить принудительно')
     group.add_argument('-l', action='store_true', help='войти в систему из терминала')
     group.add_argument('-s', action='store_true', help='общая статистика')
+    group.add_argument('-d', action='store_true', help='очищать выборку от бездельников')
     group.add_argument('-n', default='', help='поиск по фамилии с именем')
     group.add_argument('-t', default='', help='установить номер задачи для вывода смещения в позиции')
     args = parser.parse_args()
@@ -60,7 +61,7 @@ if __name__ == '__main__':
 
     sts.getTasks()
     dls = ldr.loadAllDeadlines(len(sts.tasks))
-    sts.prepare(args.t, dls)
+    sts.prepare(args.t, dls, args.d)
     
     if args.s:
         try:

@@ -11,19 +11,20 @@ class Loader:
         self.head = []
         self.body = []
         self.table = {}
+        self.update = update
         
         def updater(cache):
-            self.loadTable(update)
+            self.loadTable()
             self.makeTable()
             cache.write(str(self.table) + '\n')
             return str(self.table)
 
-        cache = CacheManager('table.cache', update)
+        cache = CacheManager('table.cache', self.update)
         cache.ifOld(updater, cache)
         data = cache.decide()
         self.table = eval(data)
 
-    def _loadPage(self, url, update, lifetime = 3):
+    def _loadPage(self, url, lifetime = 3):
         def updater(url, cache):
             data = self.session.get(url, headers=self.headers)
             data = data.content.decode('utf-8')
@@ -31,17 +32,16 @@ class Loader:
             return data
 
         filename = url[url.rfind('/')+1:] + '.cache'
-        cache = CacheManager(filename, update, lifetime)
+        cache = CacheManager(filename, self.update, lifetime)
         cache.ifOld(updater, url, cache)
         data = cache.decide()
         return HTMLPage(data)
 
-    def loadTable(self, update = False, url = ''):
+    def loadTable(self, url = ''):
         if (url == ''):
             url = self.url + '/standings'
 
-        page = self._loadPage(url, update)
-
+        page = self._loadPage(url)
         table = page.getBlocks('table')
         thead = table.getBlocks('thead')
         
@@ -86,9 +86,9 @@ class Loader:
             
             self.table[key] = t
 
-    def loadDeadline(self, taskNum, update = False):
+    def loadDeadline(self, taskNum):
         url = self.url + '/task/' + str(taskNum)
-        page = self._loadPage(url, update, -1) # Кэш действует бессрочно
+        page = self._loadPage(url, -1) # Кэш действует бессрочно
 
         blocks = page.getBlocks('h4')
         # Только у ноутбуков 2 дедлайна, у остальных заданий только одно
@@ -105,9 +105,9 @@ class Loader:
         dt = datetime.strptime(date, "%d.%m.%Y в %H:%M")
         return dt
     
-    def loadAllDeadlines(self, tasks, update = False):
+    def loadAllDeadlines(self, tasks):
         dls = []
         for t in range(1, tasks + 1):
-            dls += [self.loadDeadline(t, update = update)]
+            dls += [self.loadDeadline(t)]
         
         return dls

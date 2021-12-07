@@ -24,7 +24,20 @@ def get_headers():
     if os.path.exists('headers.json'):
         with open('headers.json', 'r') as cookie:
             headers = json.loads(cookie.read())
-        return headers
+        session = requests.session()
+        data = session.get('https://cv-gml.ru/course/2/task/1', headers=headers)
+        data = data.content.decode('utf-8')
+        try:
+            data.index("<a href='/login'>Войти</a>")
+            
+            login_bool = input("Сессия устарела. Войти через терминал? [Y/n] ").lower()
+            while login_bool not in ('', 'n', 'y'):
+                login_bool = input('Войти через терминал? [Y/n] ')
+            
+            if login_bool == 'n':
+                exit(0)
+        except Exception as e:
+            return headers
     else:
         login_bool = input('Файл headers.json не найден. Войти через терминал? [Y/n] ').lower()
         while login_bool not in ('', 'n', 'y'):

@@ -57,11 +57,7 @@ if __name__ == '__main__':
     headers = get_headers()
 
     ldr = Loader(headers, args.u)
-    sts = Statistics(ldr.table)
-
-    sts.getTasks()
-    dls = ldr.loadAllDeadlines(len(sts.tasks))
-    sts.prepare(args.t, dls, args.d)
+    sts = Statistics(ldr, args.t, args.d)
     
     if args.s:
         try:

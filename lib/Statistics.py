@@ -10,12 +10,13 @@ COLOUR_RED = '\033[31m'
 COLOUR_END = '\033[0m'
 
 class Statistics:
-    def __init__(self, table):
-        self.table = table
+    def __init__(self, loader, tp, delIdle = False):
+        self.table = loader.table
         self.lastTaskNum = None
         self.tasks = None
-
-    def prepare(self, tp, dls, delIdle = False):
+        
+        self.getTasks()
+        dls = loader.loadAllDeadlines(len(self.tasks))
         self.sortTableTasks(dls)
         self.sortTasks(dls)
         if delIdle:
@@ -40,7 +41,10 @@ class Statistics:
         self.table = dict(zip(oldkeys, newvals))
 
     def setTimePoint(self, tp):
-        self.lastTaskNum = self.lastTaskNum if tp == '' else min(int(tp), self.lastTaskNum)
+        if int(tp)- 1 >= self.lastTaskNum:
+            print(f"Ещё не наступил дедлайн задания №{tp}. Выберите число < {self.lastTaskNum + 1}.")
+            exit(1)
+        self.lastTaskNum = self.lastTaskNum if tp == '' else int(tp)
 
     def getTasks(self):
         tasks = list(self.table.keys())

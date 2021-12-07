@@ -41,9 +41,10 @@ class Statistics:
         self.table = dict(zip(oldkeys, newvals))
 
     def setTimePoint(self, tp):
-        if int(tp)- 1 >= self.lastTaskNum:
+        if (tp != '') and (int(tp) - 1 >= self.lastTaskNum):
             print(f"Ещё не наступил дедлайн задания №{tp}. Выберите число < {self.lastTaskNum + 1}.")
             exit(1)
+        
         self.lastTaskNum = self.lastTaskNum if tp == '' else int(tp)
 
     def getTasks(self):

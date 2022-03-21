@@ -17,12 +17,18 @@ class Statistics:
         
         self.getTasks()
         dls = loader.loadAllDeadlines(len(self.tasks))
+        # Удаление баллов, которые можно было получить только должникам
+        self.tasks = self.tasks[:15] + self.tasks[17:]
+        dls = dls[:15] + dls[17:]
+        del self.table['Зачетный тест']
+        del self.table['Тест пересдача']
+        ###
         self.sortTableTasks(dls)
         self.sortTasks(dls)
         if delIdle:
             self.deleteIdlers()
-        self.mean, self.stdev = self.calcZ()
         self.setTimePoint(tp)
+        self.mean, self.stdev = self.calcZ()
         self.statOldPos()
 
     def deleteIdlers(self):
@@ -46,6 +52,21 @@ class Statistics:
             exit(1)
         
         self.lastTaskNum = self.lastTaskNum if tp == '' else int(tp)
+        
+        keys = list(self.table.keys())
+        to_delete = keys[self.lastTaskNum + 4 :]
+        for key in to_delete:
+            if key == 'Сумма':
+                continue
+            del self.table[key]
+        
+        matrix = []
+        for i, key in enumerate(self.table.keys()):
+            if (i >= 1) and (i <= self.lastTaskNum + 2):
+                row = [float(x) if x != '' else 0 for x in self.table[key]]
+                matrix += [row]
+
+        self.table['Сумма'] = np.sum(np.array(matrix), axis = 0).tolist()
 
     def getTasks(self):
         tasks = list(self.table.keys())
@@ -182,6 +203,20 @@ class Statistics:
                 mark = 2
             return mark
         
+        def ratioMark(score_now, maxScore_now, mark):
+            maxScore = 514
+            match mark:
+                case 5:
+                    score = 360
+                case 4:
+                    score = 200
+                case 3:
+                    score = 70
+                case _:
+                    score = 0
+            result = (score * maxScore_now) / maxScore - score_now
+            return result if result > 0 else 0
+        
         pos = self.table['Имя'].index(name)
         max_pos = len(self.table['Имя'])
         
@@ -195,6 +230,8 @@ class Statistics:
         maxarea = erfarea(self.table['Z'][0])
         nextarea = min(erfarea(z) + 10, maxarea) / 100
         score_nextz = round((erfmark(nextarea) - z) * stdev, 1)
+        score_nextmark = round(ratioMark(score, max_score, score_mark + 1), 1)
+        lastTaskName = list(self.table.items())[self.lastTaskNum + 2][0]
 
         shift = self.genShift(pos)
         
@@ -207,6 +244,9 @@ class Statistics:
         print('-' * line)
         
         print(f'Чтобы обойти следующие 10%, нужно {score_nextz} баллов')
+        print(f'Чтобы улучшить оценку на один балл, нужно {score_nextmark} баллов')
+        print(f'Наиболее вероятное улучшение оценки: {self.errorPredict()} баллов')
+        print(f'Изменение оценки: {self.getBetter(pos)} баллов [за {lastTaskName}]')
         
         print('-' * line)
         print(f'Среднее: {mean}, Стандартное отклонение: {stdev}')
@@ -220,6 +260,57 @@ class Statistics:
             
         pltr = Plotter(self.table['Сумма'])
         pltr.plot(mean, stdev, W) 
+ 
+    def getBetter(self, pos):
+        maxScore = 514
+        
+        last_sum = self.table['Предыдущая сумма'][pos]
+        last_max = max(self.table['Предыдущая сумма'])
+        
+        sum_now = self.table['Сумма'][pos]
+        max_now = max(self.table['Сумма'])
+        
+        diff = (sum_now / max_now) - (last_sum / last_max)
+        res = round(diff * maxScore, 1)
+        return ('+' if res > 0 else '') + str(res)
+        
+ 
+    def errorPredict(self):
+        def decide(s):
+            if s.split()[0] == 'Тест':
+                return 0
+            elif s.split()[-1] == '(unit-tests)':
+                return 1
+            elif s.split()[0] == 'Введение':
+                return 1
+            elif s.split()[-1] == '(ноутбук)':
+                return 2
+            elif s.split()[-1] == '(ML)':
+                return 3
+            else:
+                raise Exception("Неизвестный класс задач: " + s)
+        
+        slice_people = 10 # Учёт только ТОП-10, именно они влияют на оценку больше всего
+        tail = 4 # Столько используется служебных столбцов
+        
+        marks = [[], [], [], []]
+        
+        for i in range(1, self.lastTaskNum + 3):
+            item = list(self.table.items())[i]
+            task_str = item[1][:slice_people]
+            task_float = [float(x) if x != '' else 0 for x in task_str]
+            task = np.array(list(filter(lambda x: x > 0, task_float)))
+            
+            marks[decide(item[0])] += [np.max(task) - np.median(task)]
+
+        av = [np.mean(np.array(x)) if len(x) > 0 else 0 for x in marks]
+
+        error = 0
+        for i in range(self.lastTaskNum + 3, len(self.table.items()) - tail):
+            item = list(self.table.items())[i]
+            error += av[decide(item[0])]
+        
+        return round(error, 1)
  
     def statTop(self, name):
         n = 10
